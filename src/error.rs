@@ -1,7 +1,10 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum FsError {}
+pub enum FsError {
+    #[error("disk error {0}")]
+    DiskError(#[from] DiskError),
+}
 
 pub type FsResult<T> = Result<T, FsError>;
 
