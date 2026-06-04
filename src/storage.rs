@@ -3,8 +3,8 @@ use crate::{domain::BlockId, error::DiskResult};
 pub const BLOCK_SIZE: usize = 4096;
 
 pub struct Block {
-    id: BlockId,
-    data: [u8; BLOCK_SIZE],
+    pub id: BlockId,
+    pub data: [u8; BLOCK_SIZE],
 }
 
 pub trait Disk {
