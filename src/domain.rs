@@ -11,10 +11,15 @@ pub struct Metadata {
     pub size: u128,
 }
 
-pub struct Inode {
-    pub id: InodeId,
-    pub metadata: Metadata,
-    pub data_pointers: Vec<BlockId>,
+pub enum Inode {
+    File {
+        id: InodeId,
+        metadata: Metadata,
+        data_pointers: Vec<BlockId>,
+    },
+    Directory {
+        directories: Vec<DirectoryEntry>,
+    },
 }
 
 pub struct DirectoryEntry {
