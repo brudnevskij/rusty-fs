@@ -3,7 +3,7 @@ use crate::{
     storage::{BLOCK_SIZE, Block},
 };
 
-pub struct FsMetaData {
+pub struct FsMetadata {
     magic_number: u64,
 
     total_inodes: u64,
@@ -60,7 +60,7 @@ fn write_u64_at(data: &mut [u8], field: usize, value: u64) -> Result<(), Invalid
     Ok(())
 }
 
-impl FsMetaData {
+impl FsMetadata {
     pub fn new(
         total_inodes: u64,
         total_blocks: u64,
@@ -136,7 +136,7 @@ impl FsMetaData {
     }
 }
 
-impl TryFrom<Block> for FsMetaData {
+impl TryFrom<Block> for FsMetadata {
     type Error = InvalidSuperBlockError;
 
     fn try_from(block: Block) -> Result<Self, Self::Error> {
@@ -146,7 +146,7 @@ impl TryFrom<Block> for FsMetaData {
             return Err(InvalidSuperBlockError);
         }
 
-        let metadata = FsMetaData {
+        let metadata = FsMetadata {
             magic_number,
 
             total_inodes: read_u64_at(&block.data, TOTAL_INODES_FIELD)?,
@@ -163,5 +163,61 @@ impl TryFrom<Block> for FsMetaData {
         metadata.validate()?;
 
         Ok(metadata)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{
+        memory_fs::metadata::{
+            self, FREE_BLOCKS_FIELD, FREE_INODES_FIELD, FS_MAGIC, FsMetadata,
+            INODE_TABLE_BLOCKS_FIELD, INODE_TABLE_START_FIELD, MAGIC_NUMBER_FIELD,
+            ROOT_INODE_FIELD, TOTAL_BLOCKS_FIELD, TOTAL_INODES_FIELD, U64_SIZE,
+        },
+        storage::Block,
+    };
+
+    // tests helper
+    fn write_u64_at(buffer: &mut [u8], value: u64, field_index: usize, field_size: usize) {
+        let start = field_index * field_size;
+        let end = start + field_size;
+        let dst = buffer
+            .get_mut(start..end)
+            .expect("expecting space in the buffer");
+        dst.copy_from_slice(&value.to_be_bytes());
+    }
+
+    fn get_correct_super_block() -> Block {
+        let mut data = [0; _];
+
+        write_u64_at(&mut data, FS_MAGIC, MAGIC_NUMBER_FIELD, U64_SIZE);
+
+        write_u64_at(&mut data, 100, TOTAL_INODES_FIELD, U64_SIZE);
+        write_u64_at(&mut data, 10, FREE_INODES_FIELD, U64_SIZE);
+
+        write_u64_at(&mut data, 100, TOTAL_BLOCKS_FIELD, U64_SIZE);
+        write_u64_at(&mut data, 10, FREE_BLOCKS_FIELD, U64_SIZE);
+
+        write_u64_at(&mut data, 7, ROOT_INODE_FIELD, U64_SIZE);
+        write_u64_at(&mut data, 2, INODE_TABLE_START_FIELD, U64_SIZE);
+        write_u64_at(&mut data, 3, INODE_TABLE_BLOCKS_FIELD, U64_SIZE);
+
+        Block { id: 0, data }
+    }
+
+    #[test]
+    fn correct_metadata_init() {
+        let super_block = get_correct_super_block();
+        let metadata: FsMetadata = super_block.try_into().expect("correct init");
+
+        assert_eq!(metadata.magic_number, FS_MAGIC);
+        assert_eq!(metadata.total_inodes, 100);
+        assert_eq!(metadata.free_inodes, 10);
+        assert_eq!(metadata.total_blocks, 100);
+        assert_eq!(metadata.free_blocks, 10);
+        assert_eq!(metadata.root_inode, 7);
+        assert_eq!(metadata.inode_table_start, 2);
+        assert_eq!(metadata.inode_table_blocks, 3);
     }
 }
