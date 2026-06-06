@@ -4,13 +4,64 @@ use crate::{
     domain::{BlockId, DirectoryEntry, Inode, InodeId},
     error::{FsError, FsResult},
     memory_fs::metadata::FsMetadata,
-    storage::Disk,
+    storage::{BLOCK_SIZE, Block, Disk},
 };
 
 pub struct FileSystem<D: Disk> {
     fs_metadata: FsMetadata,
-    inode_table: HashMap<InodeId, Inode>,
+    inode_table: InodeTable,
     disk: D,
+}
+
+type InodeTable = HashMap<InodeId, Inode>;
+
+fn parse_inode_table(inode_table_blocks: Vec<Block>) -> InodeTable {
+    todo!()
+}
+
+struct BlockReader {
+    blocks: Vec<Block>,
+    block_idx: usize,
+    position: usize,
+}
+
+impl BlockReader {
+    fn new(blocks: Vec<Block>) -> BlockReader {
+        BlockReader {
+            blocks,
+            block_idx: 0,
+            position: 0,
+        }
+    }
+
+    fn next_byte(&mut self) -> Option<u8> {
+        let byte = self
+            .blocks
+            .get(self.block_idx)?
+            .data
+            .get(self.position)
+            .copied();
+
+        self.position += 1;
+        if self.position >= BLOCK_SIZE {
+            self.position = 0;
+            self.block_idx += 1;
+        }
+
+        byte
+    }
+
+    fn read_until(&mut self, delimiter: u8) -> Vec<u8> {
+        let mut buffer = Vec::new();
+        while let Some(b) = self.next_byte() {
+            if b == delimiter {
+                break;
+            }
+            buffer.push(b);
+        }
+
+        buffer
+    }
 }
 
 impl<D: Disk> FileSystem<D> {
@@ -27,6 +78,17 @@ impl<D: Disk> FileSystem<D> {
         self.fs_metadata = metadata;
 
         // init inode table
+        let mut inode_table_blocks =
+            Vec::with_capacity(self.fs_metadata.inode_table_blocks as usize);
+
+        let start = self.fs_metadata.inode_table_start;
+        let end = start + self.fs_metadata.inode_table_blocks;
+        for block_id in start..end {
+            let block = self.disk.read_block(block_id)?;
+            inode_table_blocks.push(block);
+        }
+
+        let inode_table = parse_inode_table(inode_table_blocks);
 
         todo!()
     }
