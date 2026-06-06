@@ -51,7 +51,7 @@ impl BlockReader {
         byte
     }
 
-    fn read_until(&mut self, delimiter: u8) -> Vec<u8> {
+    pub fn read_until(&mut self, delimiter: u8) -> Vec<u8> {
         let mut buffer = Vec::new();
         while let Some(b) = self.next_byte() {
             if b == delimiter {
@@ -119,5 +119,58 @@ impl<D: Disk> FileSystem<D> {
 
     fn rename() -> FsResult<()> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{memory_fs::filesystem::BlockReader, storage::Block};
+
+    #[test]
+    fn correct_inode_entry_streaming() {
+        let mut data = [0u8; 4096];
+        data[..4].copy_from_slice(b"123;");
+        let block = Block { id: 1, data: data };
+
+        let mut block_reader = BlockReader::new(vec![block]);
+        let buff = block_reader.read_until(b';');
+        assert_eq!(buff, b"123");
+    }
+
+    #[test]
+    fn correct_cross_block_inode_entry_streaming() {
+        let mut data_1 = [0u8; 4096];
+        let mut data_2 = [0u8; 4096];
+        data_1[4094..].copy_from_slice(b";d");
+        data_2[..4].copy_from_slice(b"ata;");
+
+        let mut block_reader = BlockReader::new(vec![
+            Block {
+                id: 0,
+                data: data_1,
+            },
+            Block {
+                id: 1,
+                data: data_2,
+            },
+        ]);
+        let buff = block_reader.read_until(b';');
+        assert_eq!(buff.len(), 4094);
+
+        let buff = block_reader.read_until(b';');
+        assert_eq!(buff, b"data");
+    }
+
+    #[test]
+    fn reads_multiple_entries_from_same_stream() {
+        let mut data = [0u8; 4096];
+        data[..8].copy_from_slice(b"123;456;");
+
+        let block = Block { id: 1, data };
+
+        let mut block_reader = BlockReader::new(vec![block]);
+
+        assert_eq!(block_reader.read_until(b';').as_slice(), b"123");
+        assert_eq!(block_reader.read_until(b';').as_slice(), b"456");
     }
 }
