@@ -18,6 +18,7 @@ pub enum Inode {
         data_pointers: Vec<BlockId>,
     },
     Directory {
+        id: InodeId,
         directories: Vec<DirectoryEntry>,
     },
 }
