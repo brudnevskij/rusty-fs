@@ -4,17 +4,17 @@ use crate::{
 };
 
 pub struct FsMetadata {
-    magic_number: u64,
+    pub magic_number: u64,
 
-    total_inodes: u64,
-    free_inodes: u64,
+    pub total_inodes: u64,
+    pub free_inodes: u64,
 
-    total_blocks: u64,
-    free_blocks: u64,
+    pub total_blocks: u64,
+    pub free_blocks: u64,
 
-    root_inode: InodeId,
-    inode_table_start: BlockId,
-    inode_table_blocks: u64,
+    pub root_inode: InodeId,
+    pub inode_table_start: BlockId,
+    pub inode_table_blocks: u64,
 }
 
 const U64_SIZE: usize = 8;
